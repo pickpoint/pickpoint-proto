@@ -26,4 +26,4 @@ An SDK implements **api + wire + reconnect + filter**. Relocate is the only clus
 
 ## Contributing
 
-Fork and open a PR against **`dev`**. [CONTRIBUTING.md](CONTRIBUTING.md).
+Fork and open a pull request against **`dev`** — not `main`. Only [pickpoint](https://github.com/pickpoint) organization members can merge `dev` or `main`. Releases are `dev` → `main`.
