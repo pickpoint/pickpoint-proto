@@ -109,18 +109,18 @@ Route vertices (`TrackStart.route`, `Subscribed.route`) are **only** absolute `i
 `55°N, 37°E`, no alt/accuracy/time, `seq = 1`, `count = 1`:
 
 ```
-μlat = 55_000_000 = 0x0346DC40  → LE  40 DC 46 03
-μlon = 37_000_000 = 0x0234B740  → LE  40 B7 34 02
+μlat = round(55 × 1e6) = 55_000_000 = 0x03473BC0  → LE  C0 3B 47 03
+μlon = round(37 × 1e6) = 37_000_000 = 0x02349340  → LE  40 93 34 02
 
 04                  type Loc
 01 00 00 00         seq = 1
 01                  count = 1
 00                  flags (abs lat/lon only)
-40 DC 46 03         lat
-40 B7 34 02         lon
+C0 3B 47 03         lat
+40 93 34 02         lon
 ```
 
-15 bytes application payload. (WS mask + TLS + TCP/IP around it is ~80–100 bytes on the wire; at 1 Hz that is ~100 B/s. Do not enable `permessage-deflate`.)
+15 bytes application payload. Canonical hex for this frame (and Ack, Resume, …) is in [goldens.md](goldens.md). Do not enable `permessage-deflate`.
 
 ---
 

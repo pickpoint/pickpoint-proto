@@ -23,6 +23,8 @@ A device does not receive live `0x86 Loc`. Ingest receipt is `0x85 Ack`.
 wss://tracking.pickpoint.io/v2/ws?access-token=<jwt>
 ```
 
+`<jwt>` is a Pickpoint **client-token** `access_token` (`POST /v2/client-tokens`, scope `devices`) — the same Bearer token as HTTP `client_auth`. Mint it on the integrator’s backend; the secret API key must not go in the dashboard. The session is scoped to that account’s devices.
+
 After `Hello`, `Subscribe` per device. The listener gets a `Subscribed` snapshot plus live `Loc` / `EventAdded` / `Presence` / track start-stop.
 
 A listener does not Resume a track. After a drop: new socket → `Hello` → `Subscribe` again. Missed live points are not replayed; use HTTP history on public-api.
@@ -65,6 +67,10 @@ Commands are not stored, not resumed, not inherited across TrackStart supersede.
 
 `0x8B Presence` when a device session opens or the last one closes. `last_seen` is throttled (~5 s) while publishing. `Subscribed.online` / `last_seen` is the snapshot at subscribe time.
 
+## Track history (HTTP)
+
+Finished tracks on public-api include `finishReason`: `client_stop` | `superseded` | `idle`. It is not on the WebSocket `TrackStopped` frame.
+
 ## Related
 
-[wire.md](wire.md) · [reconnect.md](reconnect.md) · [filter.md](filter.md)
+[wire.md](wire.md) · [reconnect.md](reconnect.md) · [filter.md](filter.md) · [goldens.md](goldens.md)

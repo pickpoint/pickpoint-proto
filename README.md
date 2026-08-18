@@ -12,6 +12,7 @@ HTTP geocoding / routing / search are separate JSON APIs and are not specified h
 | [spec/wire.md](spec/wire.md) | Every byte on the socket: types, frames, examples |
 | [spec/reconnect.md](spec/reconnect.md) | Session start, socket drop, Resume vs TrackStart |
 | [spec/filter.md](spec/filter.md) | Device GPS noise filter (SDK-side) |
+| [spec/goldens.md](spec/goldens.md) | Canonical hex frames for SDK codecs |
 | [spec/sharding.md](spec/sharding.md) | `Relocate` when the node is not the device’s home |
 
 An SDK implements **api + wire + reconnect + filter**. Relocate is the only cluster behaviour a client must handle.

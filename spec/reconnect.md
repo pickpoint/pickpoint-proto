@@ -49,7 +49,7 @@ app: publish({ lat, lng, … })   // many times
    ◄──── 0x85 Ack(seq)
 ```
 
-Until `TrackStarted` (or `ResumeOk`) the SDK must not send `Loc`. `publish()` before that is invalid.
+Until `TrackStarted` (or `ResumeOk`) the SDK must not send `Loc`. `publish()` before that **opens** the trip (`TrackStart` with that point) and stages further GPS until `TrackStarted`. An explicit `startTrack()` is only needed for route / metadata / supersede.
 
 `close()` from the app: do **not** Resume afterwards. The track stays on the server until `TrackStop` or the idle job. This session is finished.
 
@@ -148,7 +148,7 @@ SDK:
      wait for 0x82 ResumeOk  or  0x88 Error  or  0x81 Relocate
 ```
 
-`Resume.last_seq` means “I have numbered up to 45”. It is **not** an instruction to set the server cursor. The server looks at L1 / store and answers with **its** `last_acked`.
+`Resume.last_seq` means “I have numbered up to 45”. It is **not** an instruction to set the server cursor. The server answers with **its** `last_acked`, in this order: live L1 → live snapshot (Redis) → durable track row. Missing all three → `TRACK_NOT_FOUND`.
 
 ### 5.3 ResumeOk — flush
 
@@ -306,15 +306,23 @@ Leftover Staging for A is **discarded** on TrackStart, not flushed onto A. That 
 
 ## 11. App-facing SDK (do not leak frames)
 
+Device happy path is two calls after `connect`. First `publish` sends `TrackStart` if there is no live track. `close` sends `TrackStop` (best-effort) then drops the socket.
+
 ```ts
-const c = await connect({ endpoint, auth: deviceAuth, reconnect: true });
-const trackUid = await c.startTrack({ location });
-c.publish({ latitude, longitude }); // SDK: filter → Loc or Staging
-
+const c = await connect({ endpoint, auth: deviceAuth });
+c.publish({ latitude, longitude }); // TrackStart if idle, then filter → Loc
 // LTE flap: SDK Hello → Resume → Loc. App code does nothing.
+c.close(); // TrackStop + hang up. No Resume after this.
+```
 
-c.stopTrack();
-c.close(); // no Resume after this
+`startTrack` / `stopTrack` stay for an explicit new trip (supersede), a route / metadata, or ending a trip without dropping the socket.
+
+Listener happy path: pass the device on `connect`.
+
+```ts
+const c = await connect({ endpoint, auth: listenerAuth, subscribe: deviceUid });
+c.on('location', (msg) => { /* 0x86 */ });
+c.close();
 ```
 
 Useful events: `state: connecting | open | reconnecting | closed`, `error` (fatal resume), maybe `resumeOk`. **`onLocation` is for listeners** (`0x86`), not for the device Ack.
