@@ -1,6 +1,6 @@
 # pickpoint-proto
 
-Canonical **tracking.v2** protocol: binary WebSocket at `wss://tracking.pickpoint.io/v2/ws`.
+Canonical **tracking.v2** protocol: binary WebSocket at `wss://tracking.pickpoint.io/v2/ws`, plus HTTP ingest `POST /v2/ingest` (same client frames, no Hello) for beacons.
 
 HTTP geocoding / routing / search are separate JSON APIs and are not specified here.
 

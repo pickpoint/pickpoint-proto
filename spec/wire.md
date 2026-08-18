@@ -44,6 +44,10 @@ Reserved type bytes — never send: `0x00`, `0x7F`, `0xFF` (future escape), `0x8
 
 Keepalive: WS ping/pong only. No app Ping/Pong.
 
+### HTTP ingest (`POST /v2/ingest`)
+
+Same frame bytes as above. One HTTP body = **zero or more complete client frames concatenated**. Extra bytes after a known body are the **next** frame (not ignored). No Hello. Auth is query or `X-Client-*` headers. See [api.md](api.md#http-ingest-beacons).
+
 ---
 
 ## 2. Primitive types
