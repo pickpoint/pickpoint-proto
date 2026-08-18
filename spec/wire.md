@@ -13,7 +13,7 @@ This document is the encoding. Session behaviour (when to Resume, what Staging i
 
 ```
 Client                              Server
-  |-- HTTP GET /v2/tracking/ws
+  |-- HTTP GET /v2/ws
   |   Sec-WebSocket-Protocol: tracking.v2
   |   query: client-id + client-secret
   |        OR access-token
@@ -263,7 +263,7 @@ Client that does not implement this `version` closes the socket.
 
 ```
 retry_ms      u32
-endpoint      string   e.g. wss://other-node/v2/tracking/ws
+endpoint      string   e.g. wss://n2.example/v2/ws
 ```
 
 This node is not the home (or is draining). Client closes, dials `endpoint` **with the same query auth**, waits for Hello, then **Resume** if it has a `track_uid` (device) or **Subscribe** again (listener). Never TrackStart just because of Relocate.

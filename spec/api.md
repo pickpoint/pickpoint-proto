@@ -1,102 +1,70 @@
-# Tracking HTTP / session surface
+# Tracking API
 
-Realtime GPS is **only** the WebSocket in [wire.md](wire.md). No JSON on that socket. No HTTP ingest for live points.
+Host: **`tracking.pickpoint.io`**. Live session is a WebSocket; the frame layout is [wire.md](wire.md). Track history is REST on public-api, not this host.
 
-## Paths
+| | |
+|--|--|
+| `wss://tracking.pickpoint.io/v2/ws` | Device or listener session. Subprotocol `tracking.v2`. |
+| `POST /v2/devices/{uid}/command` | Opaque command to an online device (same host). |
 
-| Path | Role |
-|------|------|
-| `GET /v2/tracking/ws` | Binary WebSocket. Subprotocol **`tracking.v2`** is required. |
-| `POST /v2/devices/{uid}/command` | Inject an opaque command to an **online** device (see below). |
-| `GET /healthz` | Process is up. |
-| `GET /readyz` | 503 while the node is draining a shard. |
-
-History reads are **not** this service:
-
-| Endpoint | Owner |
-|----------|-------|
-| `GET /v2/devices/{uid}/tracks`, `…/tracks/{trackUid}` | public-api |
-| Finished-track polyline, names, `finish_reason` | HTTP track read (MobilityDB) |
-
-## Two kinds of client
-
-The same URL, different auth, different frames.
-
-### Device (publisher)
-
-Auth as query params:
+## Device
 
 ```
-GET /v2/tracking/ws?client-id=<device-uid>&client-secret=<secret>
+wss://tracking.pickpoint.io/v2/ws?client-id=<device-uid>&client-secret=<secret>
 ```
 
-`client-id` **is** the device UID (UUID). The session may:
+`client-id` is the device UID (UUID). After `Hello` the session may start / stop / resume one live track, send `Loc` and `Event`, and receive `Ack`, `TrackStarted` / `TrackStopped`, `ResumeOk`, `Command`, `Error`, `Relocate`.
 
-- start / stop / resume **one** live track
-- send `Loc` and `Event` for that track
-- receive `Ack`, `TrackStarted` / `TrackStopped`, `ResumeOk`, `Command`, `Error`, `Relocate`
+A device does not receive live `0x86 Loc`. Ingest receipt is `0x85 Ack`.
 
-A device never receives live `0x86 Loc` (that would be an echo of its own GPS). Ingest receipt is `0x85 Ack`.
-
-### Listener (subscriber)
-
-Auth:
+## Listener
 
 ```
-GET /v2/tracking/ws?access-token=<jwt>
+wss://tracking.pickpoint.io/v2/ws?access-token=<jwt>
 ```
 
-(`Authorization: Bearer` is accepted on the command HTTP route; WS uses the query token.)
+After `Hello`, `Subscribe` per device. The listener gets a `Subscribed` snapshot plus live `Loc` / `EventAdded` / `Presence` / track start-stop.
 
-After `Hello`, the listener sends `Subscribe` per device it cares about. It receives a `Subscribed` snapshot plus live `Loc` / `EventAdded` / `Presence` / track start-stop for those devices.
+A listener does not Resume a track. After a drop: new socket → `Hello` → `Subscribe` again. Missed live points are not replayed; use HTTP history on public-api.
 
-A listener **does not** Resume a track. After a socket drop it dials again, waits for `Hello`, and sends `Subscribe` again. Missed live points are not replayed on WS; use HTTP history.
+## Handshake
 
-## Handshake (both roles)
+1. Upgrade with `Sec-WebSocket-Protocol: tracking.v2`. Wrong or missing → HTTP 400.
+2. Query auth. Missing or bad → HTTP 401.
+3. Wrong home shard (device) → `0x81 Relocate` then close ([reconnect.md](reconnect.md#7-relocate)).
+4. First binary frame is always `0x80 Hello` with `version = 2`. Unknown version → client closes.
+5. Do not send application frames before `Hello`.
 
-1. Client opens WS with `Sec-WebSocket-Protocol: tracking.v2`. Missing / wrong subprotocol → HTTP 400, no socket.
-2. Server authenticates the query. Bad/missing creds → HTTP 401.
-3. If this node is not the device’s home shard (device only) → the socket may still open long enough to send `0x81 Relocate` and close (see [reconnect.md](reconnect.md#relocate)).
-4. First **binary** frame from the server is always `0x80 Hello` with `version = 2`.
-5. If `Hello.version` is not `2`, the client closes. Do not send application frames first.
+Keepalive is WebSocket ping/pong. One binary WS message = one protocol frame. Text → close 1002.
 
-Keepalive is **WebSocket ping/pong** (browser / OS stack). There is no app-level Ping frame.
+## Limits
 
-One WS **binary** message = one protocol frame. Text frames → close 1002.
-
-## Limits (server enforces)
-
-| What | Limit |
-|------|--------|
+| | |
+|--|--|
 | Ingest `Loc` | 50 Hz per track (defense; a correct SDK is ~1 Hz after the filter) |
 | `Loc.count` | 1…100 |
-| Event payload | 4 KiB, 1 Hz per track (excess events dropped silently) |
+| Event | 4 KiB, 1 Hz per track (extras dropped) |
 | Track metadata | 4 KiB |
-| Command payload | 4 KiB |
+| Command | 4 KiB |
 | String / bytes fields | `u16` length, max 4096 |
-| Staging / InFlight (SDK) | 10_000 points (RAM only; see [reconnect.md](reconnect.md)) |
+| Staging / InFlight (SDK) | 10_000 points ([reconnect.md](reconnect.md)) |
 | Listener subscriptions | 255 per session (`sub` = 1…255) |
 
-## Device command (HTTP → WS)
+## Command
 
-`POST /v2/devices/{uid}/command`
+`POST https://tracking.pickpoint.io/v2/devices/{uid}/command`
 
-- Body: raw bytes (`application/octet-stream`) or JSON `{ "payload": "<base64>" }`
-- Server pushes `0x8A Command` on every **online** device WS for that uid
+- Body: raw bytes or JSON `{ "payload": "<base64>" }`
+- Server pushes `0x8A Command` on every online device session for that uid
 - Waits ~5 s for `0x08 CommandAck`
-- Online + ack ok → 200 `{ commandId, delivered, status, message }`
-- Offline → **409**
-- Ack timeout → **504**
-- Payload > 4 KiB → **400**
+- 200 `{ commandId, delivered, status, message }` · offline **409** · ack timeout **504** · too large **400**
 
-Commands are ephemeral: not stored, not resumed, not inherited across TrackStart supersede.
+Commands are not stored, not resumed, not inherited across TrackStart supersede. `Authorization: Bearer` is accepted here; the WebSocket uses the query token.
 
 ## Presence
 
-Listeners get `0x8B Presence` when a device session opens or the last session for that device closes. `last_seen` is also throttled (~5 s) while the device is publishing. `Subscribed.online` / `last_seen` is the snapshot at subscribe time.
+`0x8B Presence` when a device session opens or the last one closes. `last_seen` is throttled (~5 s) while publishing. `Subscribed.online` / `last_seen` is the snapshot at subscribe time.
 
 ## Related
 
-- Byte layouts: [wire.md](wire.md)
-- Drop / Resume / Staging: [reconnect.md](reconnect.md)
-- GPS filter: [filter.md](filter.md)
+[wire.md](wire.md) · [reconnect.md](reconnect.md) · [filter.md](filter.md)

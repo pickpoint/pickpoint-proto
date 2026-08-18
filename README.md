@@ -1,6 +1,6 @@
 # pickpoint-proto
 
-Canonical **tracking.v2** protocol: binary WebSocket for live GPS.
+Canonical **tracking.v2** protocol: binary WebSocket at `wss://tracking.pickpoint.io/v2/ws`.
 
 HTTP geocoding / routing / search are separate JSON APIs and are not specified here.
 

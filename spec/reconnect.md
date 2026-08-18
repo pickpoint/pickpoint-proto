@@ -10,7 +10,7 @@ The application never calls Resume. That is SDK-internal.
 
 ## 1. What you are looking at
 
-Two roles share `/v2/tracking/ws`:
+Two roles share `wss://tracking.pickpoint.io/v2/ws`:
 
 | | Device | Listener |
 |--|--------|----------|
@@ -230,7 +230,7 @@ sequenceDiagram
 The process you hit is not the home shard (or it is draining).
 
 ```
-◄── 0x81 Relocate  retry_ms  endpoint="wss://n2/v2/tracking/ws"
+◄── 0x81 Relocate  retry_ms  endpoint="wss://n2.example/v2/ws"
 SDK closes this socket
 sleep retry_ms (honour it)
 dial endpoint with the same auth

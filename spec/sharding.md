@@ -4,7 +4,7 @@ Clients do not pick a shard. The server may close a device session with `0x81 Re
 
 ```
 retry_ms      u32
-endpoint      string   wss://…/v2/tracking/ws
+endpoint      string   wss://…/v2/ws
 ```
 
 The SDK:
