@@ -23,3 +23,7 @@ An SDK implements **api + wire + reconnect + filter**. Relocate is the only clus
 - First server frame `Hello.version`: `2`
 - A new **server→client** frame type does not bump the version (unknown server types are ignored).
 - A breaking layout is a new subprotocol (`tracking.v3`).
+
+## Contributing
+
+Fork and open a PR against **`dev`**. [CONTRIBUTING.md](CONTRIBUTING.md).
